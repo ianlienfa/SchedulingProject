@@ -55,10 +55,10 @@ public:
     pair<list<int>, double> DFSsolve(Vb prec, Vb child, Vd s, Vd t, bool print = false);
     void DFS(double &min, list<int> &min_seq, B visited, Vi seq, int lv);
     pair<list<int>, double> BFSsolve(Vb prec, Vb child, Vd s, Vd t, bool print);
-    pair<list<int>, double> BSTBBsolve(Vb prec, Vb child, Vd s, Vd t, bool print);
-    pair<list<int>, double> BSTBBsolve(){return BSTBBsolve(prec, child, s, t, true);};
+    pair<list<int>, double> BFSBBsolve(Vb prec, Vb child, Vd s, Vd t, bool print);
+    pair<list<int>, double> BFSBBsolve(){return BFSBBsolve(prec, child, s, t, true);};
     QQjr qqjrGen(E &e, int start);
-    pair<list<int>, double> BSTCBBsolve(Vb prec, Vb child, Vd s, Vd t, bool print);
+    pair<list<int>, double> BFSCBBsolve(Vb prec, Vb child, Vd s, Vd t, bool print);
 };
 
 void SetAndTestSchedule::inputInit()
@@ -374,7 +374,7 @@ pair<list<int>, double> SetAndTestSchedule::solve(Vb prec, Vb child, Vd s, Vd t,
 }
 
 
-pair<list<int>, double> SetAndTestSchedule::BSTBBsolve(Vb prec, Vb child, Vd s, Vd t, bool print)
+pair<list<int>, double> SetAndTestSchedule::BFSBBsolve(Vb prec, Vb child, Vd s, Vd t, bool print)
 {
     //init
     this->s = s;
@@ -382,7 +382,7 @@ pair<list<int>, double> SetAndTestSchedule::BSTBBsolve(Vb prec, Vb child, Vd s, 
     this->prec = prec;
     this->child = child;
 
-    // BST generate permutations, here we don't need c
+    // BFS generate permutations, here we don't need c
     PriorityQueue<E> q([](const E &e1, const E &e2){return e1.lb < e2.lb;});
     q.push(E(B(0), Vi(), 0));
     long long sz = 1, lv = 0;
@@ -506,7 +506,7 @@ pair<list<int>, double> SetAndTestSchedule::BSTBBsolve(Vb prec, Vb child, Vd s, 
     return make_pair(min_seq, min);
 }
 
-
+// qqjr means 2d queue of job-with-release-time, this function generates the sequence combining fixed and SRPT
 QQjr SetAndTestSchedule::qqjrGen(E &e, int start)
 {
     // for all the setup jobs not yet done, set their release time to "start"
@@ -563,8 +563,8 @@ QQjr SetAndTestSchedule::qqjrGen(E &e, int start)
     return qqjr;
 }
 
-
-pair<list<int>, double> SetAndTestSchedule::BSTCBBsolve(Vb prec, Vb child, Vd s, Vd t, bool print)
+// cyclic-BFS + Branch-and-Bound
+pair<list<int>, double> SetAndTestSchedule::BFSCBBsolve(Vb prec, Vb child, Vd s, Vd t, bool print)
 {
     //init
     this->s = s;
@@ -574,6 +574,7 @@ pair<list<int>, double> SetAndTestSchedule::BSTCBBsolve(Vb prec, Vb child, Vd s,
 
     // BST generate permutations, here we don't need c
     vector<PriorityQueue<E>> contour;
+    // each level has one contour(priority queue)
     contour.assign(Tn+Sn+1, PriorityQueue<E>([](const E &e1, const E &e2){return e1.lb < e2.lb;}));
     // PriorityQueue<E> q([](const E &e1, const E &e2){return e1.lb < e2.lb;});
     contour[0].push(E(B(0), Vi(), 0));
@@ -581,8 +582,8 @@ pair<list<int>, double> SetAndTestSchedule::BSTCBBsolve(Vb prec, Vb child, Vd s,
     double min = 0x3FFFFFFF;
     list<int> min_seq;
     int srptBest = 0x3FFFFFFF;
-    B levelVisited; levelVisited.set();
-    B mask(0); mask.flip(); mask >>= (mask.size() - (Tn + Sn+ 1));    
+    B levelVisited; levelVisited.set();     // levelvisited = 1111....1111, 用levelvisited來記錄每個contour是否為空
+    B mask(0); mask.flip(); mask >>= (mask.size() - (Tn + Sn+ 1));    // mask用來去掉不合理的level
     
     while((levelVisited & mask).any())
     {    
@@ -602,7 +603,7 @@ pair<list<int>, double> SetAndTestSchedule::BSTCBBsolve(Vb prec, Vb child, Vd s,
                 if(e.seq.size() == Sn)
                 {
                     if(debug) {
-                        printf("\n\nnew case starts.\n");
+                        printf("\n\nnew complete seq starts.\n");
                         printf("set job seq: "); for(auto it: e.seq) printf("%d, ", it); printf("\n");
                     }
                     Uheap hp = toUheap(e.seq, prec, child, s, t);
@@ -658,9 +659,12 @@ pair<list<int>, double> SetAndTestSchedule::BSTCBBsolve(Vb prec, Vb child, Vd s,
                 //             printf("now min: %.1f\n", min);
                 //         }
 
-
+                // branch
                 for(int i = 1; i <= Sn; i++)
                 {
+                    // 現在node還沒去過的地方
+                    // branching: move forward one more job 
+                    // compute the lower bound of the sequence and then push the node into the next level contour(priority queue)
                     if(!e.visited.test(i))
                     {
                         Vi v_in(e.seq);
@@ -760,7 +764,7 @@ int main()
     // prec 1 ~ Tn, child 1~Sn 對應的bitset
     // vector<d> t, s has the pi of jobs
     // st.debug = true;
-    pair<list<int>, double> pp = st.BSTCBBsolve(prec, child, s, t, false);
+    pair<list<int>, double> pp = st.BFSCBBsolve(prec, child, s, t, false);
     for(auto it : pp.first) printf("%d, ", it); printf("\n");
     // st.init(prec, child, s, t);
     // list<int> v = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 34, 40, 38, 37, 55, 20, 21, 44, 22, 25, 41, 29, 43, 46, 24, 52, 26, 33, 30, 51, 60, 56, 27, 59, 53, 23, 57, 50, 28, 42, 58, 35, 47, 54, 31, 32, 36, 48, 45, 49, 39};
