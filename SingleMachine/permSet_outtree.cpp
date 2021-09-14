@@ -631,6 +631,19 @@ QQjr SetAndTestSchedule::qqjrGen(E &e, bool debug = false)
 *   if elements on one level are all being visited, contour[level].size() should == 0,
     and levelVisited.set(level, 0) should be implemented
 
+/ Algorithm
+
+1.  建立contour結構，依照job數搜尋樹有Sn+Tn層，每一層(每個contour)為一個以lower bound排序的priority queue
+2.  建立levelvisited bitmap，每一個bit對應到contour的一層，若bit值為1表示尚未完全訪問
+3.  while(整個contour還有node未訪問):
+        for(所有level):
+            if(該層contour還有node未訪問):
+                *   取出lower bound最小者
+                *   if(set-up job sequence被完整生成(也就是訪問到最深處)):
+                    計算對應該set-up job sequence的 sigmaCj            
+                *   做branching -- 將還未排入sequence的set-up job排入sequence(一個深度排一個)
+            else:
+                *   將該層對應levelvisited bit設為0
 */
 
 
@@ -645,14 +658,17 @@ pair<list<int>, double> SetAndTestSchedule::BFSCBBsolve(Vb prec, Vb child, Vd s,
 
     // BST generate permutations, here we don't need c
     vector<PriorityQueue<E>> contour;
+    
     // each level has one contour(priority queue)
     contour.assign(Tn+Sn+1, PriorityQueue<E>([](const E &e1, const E &e2){return e1.lb < e2.lb;}));
+    
     // PriorityQueue<E> q([](const E &e1, const E &e2){return e1.lb < e2.lb;});
     contour[0].push(E(B(0), Vi(), 0));
+    
+    // incumbent solution init
     long long sz = 1, lv = 0;
     double min = 0x3FFFFFFF;
     list<int> min_seq;
-    int srptBest = 0x3FFFFFFF;
     B levelVisited; levelVisited.set();     // levelvisited = 1111....1111, 用levelvisited來記錄每個contour是否為空
     B mask(0); mask.flip(); mask >>= (mask.size() - (Tn + Sn+ 1));    // mask用來去掉不合理的level
 
@@ -662,11 +678,8 @@ pair<list<int>, double> SetAndTestSchedule::BFSCBBsolve(Vb prec, Vb child, Vd s,
         {
             if(contour[level].size())
             {
-                // cout << "round: " << sz++ << endl;
-                // q.bst_print();
-                // long long next_sz = 0;
                 E e = contour[level].top();
-                contour[level].extract();   // 會不會害有人沒branch到？
+                contour[level].extract();  
 
                 if(debug)
                 {                    
@@ -710,40 +723,17 @@ pair<list<int>, double> SetAndTestSchedule::BFSCBBsolve(Vb prec, Vb child, Vd s,
                         Vi v_in(e.seq);
                         v_in.push_back(i);
                         E topush = E((B(e.visited).set(i)), v_in, 0);
-
-                        // 1. tidy up the seq till this time point
-                        // 2. compute lb using SRPT
-                        QQjr job_with_rj = qqjrGen(topush);
-                        // for(auto it: job_with_rj){
-                        //     cout << "(";
-                        //     for(auto itt: it)
-                        //         cout << itt << ", ";
-                        //     cout << ")";
-                        //     }
-                        // cout << endl;
+                        QQjr job_with_rj = qqjrGen(topush);                    
                         int srpt = SRPT(job_with_rj);
                         topush.lb = srpt;
-                        // cout << topush << " SigmaCjFixed: " << sigmaCj_fixed << " SRPT: " << srpt << endl;
                         if(debug) cout << "topush: " << topush << endl;
-                        contour[level+1].push(topush);
-                        // if(srpt < srptBest)
-                        // {
-                        //     srptBest = srpt;
-
-                        //     // // add computation
-                        //     // for(int i = 1; i <= Sn; i++)
-                        //     // {
-                        //     //     if(!e.visited.test(i))
-                        // }
-                        // cout << " best srpt: " << srptBest << endl;
-                        // next_sz++;
+                        contour[level+1].push(topush);                        
                     }
                 }
             }
             else
             levelVisited.set(level, 0);
         }
-    //        q.bst_print();
     }
 
     if(print)
@@ -804,27 +794,8 @@ int main()
      }
 
 
-    // prec 1 ~ Tn, child 1~Sn 對應的bitset
-    // vector<d> t, s has the pi of jobs
     // st.debug = true;
     pair<list<int>, double> pp = st.BFSCBBsolve(prec, child, s, t, true);
     for(auto it : pp.first) printf("%d, ", it); printf("\n");
-    // st.init(prec, child, s, t);
-    // list<int> v = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 34, 40, 38, 37, 55, 20, 21, 44, 22, 25, 41, 29, 43, 46, 24, 52, 26, 33, 30, 51, 60, 56, 27, 59, 53, 23, 57, 50, 28, 42, 58, 35, 47, 54, 31, 32, 36, 48, 45, 49, 39};
-    // cout << st.computeSeq(v) << endl;
-
-
-    //init
-    // st.init(prec, child, s, t);
-
-    // E e(B("000010010"), Vi({1, 4}), 0);
-    // QQjr qu = st.qqjrGen(e);
-    // for(int i = 0; i < qu.size(); i++)
-    // {
-    //     for(int j = 0; j < qu[i].size(); j++)
-    //         cout << qu[i][j] << endl;
-    // }
-
-    
 
 }
