@@ -70,8 +70,11 @@ public:
     pair<list<int>, double> BFSsolve(Vb prec, Vb child, Vd s, Vd t, bool print);
     pair<list<int>, double> BFSBBsolve(Vb prec, Vb child, Vd s, Vd t, bool print);
     pair<list<int>, double> BFSBBsolve(){return BFSBBsolve(prec, child, s, t, true);};
-    QQjr qqjrGen(E &e, bool debug);
+    inline QQjr qqjrGen(E &e, bool debug = false){return qqjrGen_v0(e, debug);}
+    QQjr qqjrGen_v0(E &e, bool debug);  // consider sequenced & non_sequenced set up job
+    QQjr qqjrGen_v1(E &e, bool debug);  // take released test_job into consideration
     pair<list<int>, double> BFSCBBsolve(Vb prec, Vb child, Vd s, Vd t, bool print);
+    pair<list<int>, double> localSearch(Vb prec, Vb child, Vd s, Vd t, bool print);
 };
 
 void SetAndTestSchedule::inputInit()
@@ -182,14 +185,14 @@ double SetAndTestSchedule::computeSeq(list<int> seq)
         printf("ComputeSeq: seq size error!\n");
     int cum = 0;
     int ans = 0;
-    if(debug) printf("whole seq: ");
+    if(debug) printf("whole seq: \n");
     for(auto i: seq)
     {
         // if(debug) printf("%d, ", i);
         // i is the number in seq, which are job indecies
         cum += (isT(i)) ? t[originidx(i)] : s[i];
         ans += (isT(i)) ? cum : 0;
-        if(debug) printf("i: %d, cum: %d, ans: %d\n", i, cum, ans);
+        if(debug) printf("job idx j: %d, Cj: %d, ans: %d\n", i, cum, ans);
     }
     if(debug) printf("\n");
     return ans;
@@ -387,6 +390,8 @@ pair<list<int>, double> SetAndTestSchedule::solve(Vb prec, Vb child, Vd s, Vd t,
 }
 
 
+
+
 // pair<list<int>, double> SetAndTestSchedule::BFSBBsolve(Vb prec, Vb child, Vd s, Vd t, bool print)
 // {
 //     //init
@@ -519,8 +524,13 @@ pair<list<int>, double> SetAndTestSchedule::solve(Vb prec, Vb child, Vd s, Vd t,
 //     return make_pair(min_seq, min);
 // }
 
+/* 
 
-QQjr SetAndTestSchedule::qqjrGen(E &e, bool debug = false)
+
+*/ 
+
+
+QQjr SetAndTestSchedule::qqjrGen_v0(E &e, bool debug = false)
 {
     QQjr qqjr;
     map<int, vector<int>> mp;   // this is for aggregation of jobs happening at the same time    
@@ -530,11 +540,11 @@ QQjr SetAndTestSchedule::qqjrGen(E &e, bool debug = false)
         // cout << prec[t] << endl;
 
         // extract the sequenced_setup_jobs from test job j's parents
-        B sequenced_setup_jobs = (e.visited) & prec[t];
+        B sequenced_setup_jobs = (e.visited) & prec[t];     // 錯！！！        
         // cout << "seq: " << sequenced_setup_jobs << endl;
 
         // extract the parents in non_sequenced_setup_jobs 
-        B non_sequenced_setup_jobs = (~sequenced_setup_jobs) & prec[t];
+        B non_sequenced_setup_jobs = (~sequenced_setup_jobs) & prec[t];     
         // cout << "non_seq: " << non_sequenced_setup_jobs << endl;
 
         // construct the accumulated value of sequenced jobs
@@ -593,11 +603,196 @@ QQjr SetAndTestSchedule::qqjrGen(E &e, bool debug = false)
         }
     }
 
-    // turn back to QQjr    
-    /* 
-        from <r, index>
-        to [idx_of_r][<index, p, r>]
-    */
+    for(auto it: mp)
+    {
+        deque<Jr> qjr;
+        for(int i = 0; i < it.second.size(); i++)
+        {
+            // 用了新的j的pi值，可能會錯
+            qjr.push_back(Jr(it.second[i], j[it.second[i]], it.first));
+        }
+        qqjr.push_back(qjr);
+    }
+    return qqjr;
+}
+
+
+QQjr SetAndTestSchedule::qqjrGen_v1(E &e, bool debug = false)
+{
+    QQjr qqjr;
+    map<int, vector<int>> mp;   // this is for aggregation of jobs happening at the same time    
+    
+    if(debug){ cout << endl; cout << e << endl;}
+
+    // Bonus struct, for non_seq_bonus
+    struct Bonus
+    {
+        int t_idx;    
+        B beneficiary;  // 受惠於此test job的set_up jobs在此bitset標註為1
+    };
+    vector<Bonus> non_seq_bonus;
+
+    map<int, int> accu;     // <index, accumulated_process_time>
+    for(int i = e.seq.size()-1; (i >= 0) && (e.seq.size()); i--)
+    {
+        for(map<int,int>::iterator it=accu.begin(); it!=accu.end(); ++it)
+        {
+            it->second += s[e.seq[i]];
+        }
+        accu[e.seq[i]] = s[e.seq[i]];   // accu is given the set up job processing time            
+    }
+
+    // preprocessing: fill accumulative table -- accu, and fill non_seq_bonus array
+
+    Vi release;
+    for(int t_idx = 1; t_idx <= Tn; t_idx++)
+    {
+        // check if released        
+        if(((~e.visited) & prec[t_idx]).none())
+        {            
+            release.push_back(t_idx);
+            // retrieve insertable sequenced setup jobs
+            int insert_point = e.seq.size()-1;
+            bool is_nonseq_bonus = true;
+
+            for(; insert_point >= 0; --insert_point)
+            {
+                if(prec[t_idx].test(e.seq[insert_point]))
+                    break;
+            }
+            for(insert_point = insert_point + 1; insert_point < e.seq.size(); ++insert_point)
+            {
+                if(debug) cout << "t_idx: " << t_idx << " t[t_idx]: " << t[t_idx] << " e.seq[insert_point]: " << e.seq[insert_point] << " s[e.seq[insert_point]]: " << e.seq[insert_point] << endl;
+                // insert_point會從insertable往後跑，檢查：若有insertable sequenced setup job的processing time比t小->關掉bool
+                if(is_nonseq_bonus)
+                {
+                    if(t[t_idx] <= s[e.seq[insert_point]])
+                    {
+                        is_nonseq_bonus = false;
+                        accu[e.seq[insert_point]] += t[t_idx];
+                    }
+                }
+                else    // 一旦發現可以insert, insert的效果要遍及後面所有sequenced job
+                {
+                    accu[e.seq[insert_point]] += t[t_idx];                    
+                }
+            }
+            
+            // 處理non_seq_bonus
+            if(is_nonseq_bonus)
+            {
+                B sequenced_setup_jobs = (e.visited) & prec[t_idx];     
+                B non_sequenced_setup_jobs = (~sequenced_setup_jobs) & prec[t_idx];    
+
+                // 開一個對應該test job的Bonus 
+                Bonus bonus;
+                bonus.t_idx = t_idx;
+                bonus.beneficiary = B();    if(bonus.beneficiary.any()) cout << "weird, 677" << endl;
+
+                // check 哪個job會被給予bonus release time
+                // 這裏的i是set up job的index，所以直接對應到bitset是ok的
+                for(int i = 1; i <= Sn; i++)
+                {
+                    if(non_sequenced_setup_jobs.test(i) && t[t_idx] <= s[i])
+                    {                                                
+                        bonus.beneficiary.set(i);
+                    }
+                }
+
+                if(debug)
+                {
+                    cout << "bonus:" << t[bonus.t_idx] << endl;
+                    cout << "setjob with bonus: ";
+                    for(int i = 1; i <= Sn; i++)
+                    {
+                        if(bonus.beneficiary.test(i))
+                            cout << "i" << " ";
+                    }
+                    cout << endl;
+                }
+            }
+        }
+    }
+
+    if(debug)
+    {
+        if(release.size())cout << "release: ";
+        for(auto it: release)    
+            cout << it << " ";
+        if(release.size())cout << endl;
+        cout << "accu: " << endl;
+        cout << "-------------" << endl;
+        for(auto it: accu)
+            cout << "s[" << it.first << "]" << " :" << it.second << endl;
+        cout << "-------------" << endl;
+    }
+
+    for(int t_idx = 1; t_idx <= Tn; t_idx++)
+    {
+        // cout << prec[t] << endl;
+
+        // extract the sequenced_setup_jobs from test job j's parents
+        B sequenced_setup_jobs = (e.visited) & prec[t_idx];            
+        // cout << "seq: " << sequenced_setup_jobs << endl;
+
+        // extract the parents in non_sequenced_setup_jobs 
+        B non_sequenced_setup_jobs = (~sequenced_setup_jobs) & prec[t_idx];     
+        // cout << "non_seq: " << non_sequenced_setup_jobs << endl;        
+
+        // init release time component value
+        int fix = 0, non_seq_sum = 0;
+        
+        // two cases: 1. there exists non_seq_setup_jobs 2. there doesn't
+        if(non_sequenced_setup_jobs.any())
+        {
+            // the sum of sequenced_setup_jobs will be the last one
+            fix = accu[e.seq.back()];  
+
+            // accumulate the sum of non_sequenced_setup_jobs
+            for(int i = 0; i <= Sn; i++)
+            {
+                if(non_sequenced_setup_jobs.test(i))
+                    non_seq_sum += s[i];
+            }
+            // add the bonus release time to the test job
+            for(vector<Bonus>::iterator it = non_seq_bonus.begin(); it != non_seq_bonus.end(); ++it)
+            {
+                if((non_sequenced_setup_jobs & (it->beneficiary)).any())
+                {
+                    non_seq_sum += t[it->t_idx];
+                }
+            }   
+        }
+        else
+        {
+            // find the last job of the seqenced_set_up_jobs
+            for(vector<int>::reverse_iterator it = e.seq.rbegin(); it != e.seq.rend(); ++it)
+            {
+                // int idx = *it;
+                // cout << *it << endl;
+                if(sequenced_setup_jobs.test(*it))
+                {
+                    // cout << accu[*it] << endl; 
+                    fix = accu[*it];
+                    break;
+                }
+            }
+        }
+
+        int r = fix + non_seq_sum;     
+        if(debug) printf("t[%d]: %d\n", t_idx, r);
+        map<int, vector<int>>::iterator it = mp.find(r);
+        if(it == mp.end())
+        {
+            mp.insert(make_pair(r, vector<int>({tTojobidx(t_idx)})));
+        }
+        else
+        {
+            it->second.push_back(tTojobidx(t_idx));
+        }
+    }
+    if(debug) printf("\n");
+
     for(auto it: mp)
     {
         deque<Jr> qjr;
@@ -663,18 +858,22 @@ pair<list<int>, double> SetAndTestSchedule::BFSCBBsolve(Vb prec, Vb child, Vd s,
     contour.assign(Tn+Sn+1, PriorityQueue<E>([](const E &e1, const E &e2){return e1.lb < e2.lb;}));
     
     // PriorityQueue<E> q([](const E &e1, const E &e2){return e1.lb < e2.lb;});
-    contour[0].push(E(B(0), Vi(), 0));
+    contour[0].push(E(B(0), Vi(), 0));  // dummy job
     
     // incumbent solution init
     long long sz = 1, lv = 0;
-    double min = 0x3FFFFFFF;
+    double min = 14815;    
     list<int> min_seq;
     B levelVisited; levelVisited.set();     // levelvisited = 1111....1111, 用levelvisited來記錄每個contour是否為空
-    B mask(0); mask.flip(); mask >>= (mask.size() - (Tn + Sn+ 1));    // mask用來去掉不合理的level
+    B mask(0); mask.flip(); mask >>= (mask.size() - (Sn+ 1));    // mask用來去掉不合理的level, a dummy level-0 is required
+    cout << mask << endl;
+
+    // param for debug
+    unsigned long long cycle = 0;
 
     while((levelVisited & mask).any())  // if there exists node unvisited...
     {
-        for(int level = 0; level <= Tn+Sn; level++)
+        for(int level = 0; level <= Sn; level++)    // level-0 well only be visit once, since after the dummy element is removed, the size will remain at 0
         {
             if(contour[level].size())
             {
@@ -725,14 +924,38 @@ pair<list<int>, double> SetAndTestSchedule::BFSCBBsolve(Vb prec, Vb child, Vd s,
                         E topush = E((B(e.visited).set(i)), v_in, 0);
                         QQjr job_with_rj = qqjrGen(topush);                    
                         int srpt = SRPT(job_with_rj);
-                        topush.lb = srpt;
-                        if(debug) cout << "topush: " << topush << endl;
-                        contour[level+1].push(topush);                        
+                        topush.lb = srpt;                        
+
+                        // prune, lb如果比現在最好還糟就不要塞了                        
+                        if(topush.lb <= min)
+                        {
+                            if(debug) cout << "topush: " << topush << endl;
+                            contour[level+1].push(topush);      
+                        }                                     
                     }
                 }
             }
             else
             levelVisited.set(level, 0);
+        }        
+        cycle++;
+        
+        // print the best of all contour
+        if(cycle % 10 == 0)
+        {    printf("\n");
+            for(int i = 1; i <= Sn; i++)
+            {
+                if(contour[i].size())            
+                {
+                    printf("cycle: %llu, level: %d, lb: %f, set-up-seq: ", cycle, i, contour[i].top().lb);
+                    for(auto it: contour[i].top().seq)
+                    {
+                        cout << it << " ";
+                    }
+                    cout << endl;
+                }
+            }
+            printf("\n");
         }
     }
 
@@ -745,6 +968,56 @@ pair<list<int>, double> SetAndTestSchedule::BFSCBBsolve(Vb prec, Vb child, Vd s,
 
     return make_pair(min_seq, min);
 }
+
+pair<list<int>, double> SetAndTestSchedule::localSearch(Vb prec, Vb child, Vd s, Vd t, bool print)
+{
+    //init
+    this->s = s;
+    this->t = t;
+    this->prec = prec;
+    this->child = child;
+
+    // init
+    double min = 0x3FFFFFFF;    
+    double lastmin = min;
+    Vi min_seq;    
+    for(int i = 1; i <= Sn; i++)    // 為了確保idx數字對，從1開始
+    {
+        min_seq.push_back(i);
+    }
+
+    while(true)
+    {
+        for(int i = 0; i < Sn; i++) // 為了確保seq在丟進heap計算過程不出問題，從0開始
+        {
+            for(int j = i+1; j < Sn; j++)
+            {   
+                Vi tmp_seq(min_seq);   
+                SWAP(tmp_seq[i], tmp_seq[j]);
+                Uheap hp = toUheap(tmp_seq, prec, child, s, t);                
+                list<int> v = hp.find_seq();
+                double ans = computeSeq(v);
+                if(ans < min)
+                {
+                    if(debug) printf("ans: %.2f, min: %.2f\n", ans, min);
+                    min = ans;
+                    SWAP(min_seq[i], min_seq[j]);
+                    printf("now min: %.1f\n", min);
+                    for(auto it: min_seq)
+                    cout << it << ", " ; cout << endl << endl;
+                }
+            }
+        }
+        if(lastmin == min)
+            break;
+        else
+            lastmin = min;
+    }
+
+    return make_pair(Uheap::vecToList(min_seq), min);
+}
+
+
 
 
 int main()
@@ -780,6 +1053,7 @@ int main()
 
      // input precedencies
      // i means set up job i is test job j's parent
+     // Sn+Tn 0000000...0001010000000
      for(int i = 1; i <= Sn; i++)
      {
          int b;
@@ -794,8 +1068,9 @@ int main()
      }
 
 
-    // st.debug = true;
+    // st.debug = true; 
     pair<list<int>, double> pp = st.BFSCBBsolve(prec, child, s, t, true);
+    // pair<list<int>, double> pp = st.localSearch(prec, child, s, t, true);
     for(auto it : pp.first) printf("%d, ", it); printf("\n");
 
 }
