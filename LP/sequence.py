@@ -36,8 +36,7 @@ try:
     D[28][31:] = [0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]
     D[29][31:] = [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]
     D[30][31:] = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1]
-
-
+    
 
     P = [0, 21, 22, 14, 5, 19, 24, 13, 10, 30, 9, 8, 18, 7, 9, 26, 7, 20, 25, 29, 13, 4, 4, 17, 20, 15, 14, 11, 18, 6, 9, 5, 3, 12, 18, 5, 28, 8, 1, 20, 27, 6, 18, 25, 24, 8, 1, 27, 20, 13, 4, 22, 27, 14, 17, 9, 5, 13, 6, 16, 18]    # working time of test jobs , requirement jobs
     R = 30       # number of requirement jobs
@@ -80,6 +79,7 @@ try:
                 if D[j][r] == 1:
                     model.addConstr((1 - W[m, j]) * Mw + (W[m, r] - 1) >= 0)
                     model.addConstr(Y[r, j] == 1)
+
     
     # 一定要有先後
     for m in range(1, N+1):
@@ -95,7 +95,7 @@ try:
             model.addConstr(C[m, n] - (S[m, n] + P[n]) * W[m, n] == 0)
     
     
-    # 排他性
+    # # 排他性
     for m in range(1, M+1):
         for i in range(1, N+1):
             for j in range(i+1, N+1):
@@ -112,6 +112,6 @@ except gp.GurobiError as e:
 # except AttributeError:
 #     print('Encountered an attribute error')
 
-# %%
+%%
 
 # %%
