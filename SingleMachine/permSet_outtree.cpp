@@ -6,7 +6,7 @@
 #include "Uheap.h"
 #include "SetAndTestSchedule.h"
 #include "Q_ELEMENT.h"
-// #include "relax_gurobi.h"
+#include "relax_gurobi.h"
 #include "PriorityQueue.h"
 using namespace std;
 typedef struct Q_ELEMENT E;
