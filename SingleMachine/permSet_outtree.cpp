@@ -1,11 +1,12 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <climits>
 #include <queue>
 #include "Uheap.h"
 #include "SetAndTestSchedule.h"
 #include "Q_ELEMENT.h"
-#include "relax_gurobi.h"
+// #include "relax_gurobi.h"
 #include "PriorityQueue.h"
 using namespace std;
 typedef struct Q_ELEMENT E;
@@ -181,8 +182,9 @@ pair<list<int>, double> SetAndTestSchedule::BFSsolve(Vb prec, Vb child, Vd s, Vd
                     if(debug) printf("ans: %.2f, min: %.2f\n", ans, min);
                     min = ans;
                     min_seq = v;
-                    for(auto it: min_seq) printf("%d, ", it); printf("\n");
                     printf("now min: %.1f\n", min);
+                    for(auto it: min_seq)
+                    cout << it << ", " ; cout << endl << endl;
                 }
             }
 
@@ -205,8 +207,10 @@ pair<list<int>, double> SetAndTestSchedule::BFSsolve(Vb prec, Vb child, Vd s, Vd
 }
 
 
+double node_ct_DFS = 0;
 void SetAndTestSchedule::DFS(double &min, list<int> &min_seq, B visited, Vi seq, int lv)
 {
+    node_ct_DFS++;
     if(lv == Sn)
     {
         Uheap hp = toUheap(seq, prec, child, s, t);
@@ -217,23 +221,12 @@ void SetAndTestSchedule::DFS(double &min, list<int> &min_seq, B visited, Vi seq,
             if(debug) printf("ans: %.2f, min: %.2f\n", ans, min);
             min = ans;
             min_seq = v;
-            printf("now min: %.1f\n", min);
-            printf("seq: "); for(auto it: min_seq) printf("%d, ", it); printf("\n");
+            printf("now min: %.1f, node_ct: %f\n", min, node_ct_DFS);
+            for(auto it: min_seq)
+            cout << it << ", " ; cout << endl << endl;        
         }
         return;
     }
-
-    // for(int i = 1; i <= Sn; i++)
-    // {
-    //     if(!visited.test(i))
-    //     {
-    //         Vi v(seq);
-    //         B b(visited);
-    //         b.set(i);
-    //         v.push_back(i);
-    //         DFS(min, min_seq, b, v, lv+1);
-    //     }
-    // }
 
     for(int i = Sn; i >= 1; i--)
     {
@@ -265,6 +258,7 @@ pair<list<int>, double> SetAndTestSchedule::DFSsolve(Vb prec, Vb child, Vd s, Vd
 // BST, not halting
 pair<list<int>, double> SetAndTestSchedule::solve(Vb prec, Vb child, Vd s, Vd t, bool print)
 {
+    double node_ct = 0;
 //init
     this->s = s;
     this->t = t;
@@ -302,8 +296,11 @@ pair<list<int>, double> SetAndTestSchedule::solve(Vb prec, Vb child, Vd s, Vd t,
                     if(debug) printf("ans: %.2f, min: %.2f\n", ans, min);
                     min = ans;
                     min_seq = v;
-                    printf("now min: %.1f\n", min);
-                }
+                    printf("now min: %.1f, node_ct: %f\n", min, node_ct);
+                    for(auto it: min_seq)
+                    cout << it << ", " ; cout << endl << endl;
+
+                }       
             }
 
 // branch
@@ -318,6 +315,7 @@ pair<list<int>, double> SetAndTestSchedule::solve(Vb prec, Vb child, Vd s, Vd t,
                 }
             }
             q.pop_back();
+            node_ct++;
         }
         sz = next_sz;
         lv++;
@@ -336,137 +334,137 @@ pair<list<int>, double> SetAndTestSchedule::solve(Vb prec, Vb child, Vd s, Vd t,
 
 
 
-// pair<list<int>, double> SetAndTestSchedule::BFSBBsolve(Vb prec, Vb child, Vd s, Vd t, bool print)
-// {
-//     //init
-//     this->s = s;
-//     this->t = t;
-//     this->prec = prec;
-//     this->child = child;
+pair<list<int>, double> SetAndTestSchedule::BFSBBsolve(Vb prec, Vb child, Vd s, Vd t, bool print)
+{
+    //init
+    this->s = s;
+    this->t = t;
+    this->prec = prec;
+    this->child = child;
 
-//     // BFS generate permutations, here we don't need c
-//     PriorityQueue<E> q([](const E &e1, const E &e2){return e1.lb < e2.lb;});
-//     q.push(E(B(0), Vi(), 0));
-//     long long sz = 1, lv = 0;
-//     double min = 0x3FFFFFFF;
-//     list<int> min_seq;
-//     int srptBest = 0x3FFFFFFF;
+    // BFS generate permutations, here we don't need c
+    PriorityQueue<E> q([](const E &e1, const E &e2){return e1.lb < e2.lb;});
+    q.push(E(B(0), Vi(), 0));
+    long long sz = 1, lv = 0;
+    double min = 0x3FFFFFFF;
+    list<int> min_seq;
+    int srptBest = 0x3FFFFFFF;
 
-//     while(q.size())
-//     {
-// //        cout << "round: " << sz++ << endl;
-//     //    q.bst_print();
-// // long long next_sz = 0;
-//         E e = q.top();
-//         q.extract();
-//     //    cout << endl << endl << endl;
+    while(q.size())
+    {
+//        cout << "round: " << sz++ << endl;
+    //    q.bst_print();
+// long long next_sz = 0;
+        E e = q.top();
+        q.extract();
+    //    cout << endl << endl << endl;
 
-//         // for each permutation, solve it by Uheap
+        // for each permutation, solve it by Uheap
     
-//         if(e.seq.size() == Sn)
-//         {
-//             if(debug) {
-//                 printf("\n\nnew case starts.\n");
-//                 printf("set job seq: "); for(auto it: e.seq) printf("%d, ", it); printf("\n");
-//             }
-//             Uheap hp = toUheap(e.seq, prec, child, s, t);
-// //                hp.debug = true;
-//             list<int> v = hp.find_seq();
-//             double ans = computeSeq(v);
-//             if(ans < min)
-//             {
-//                 if(debug) printf("ans: %.2f, min: %.2f\n", ans, min);
-//                 min = ans;
-//                 min_seq = v;
-//                 printf("now min: %.1f\n", min);
-//             }
-//             continue;
-//         }
+        if(e.seq.size() == Sn)
+        {
+            if(debug) {
+                printf("\n\nnew case starts.\n");
+                printf("set job seq: "); for(auto it: e.seq) printf("%d, ", it); printf("\n");
+            }
+            Uheap hp = toUheap(e.seq, prec, child, s, t);
+//                hp.debug = true;
+            list<int> v = hp.find_seq();
+            double ans = computeSeq(v);
+            if(ans < min)
+            {
+                if(debug) printf("ans: %.2f, min: %.2f\n", ans, min);
+                min = ans;
+                min_seq = v;
+                printf("now min: %.1f", min);
+            }
+            continue;
+        }
 
-//         // branch
-//         double fixed = 0;
-//         double sigmaCj_fixed = 0;
-//         for(int i = 0; i < e.seq.size(); i++)
-//         {
-//             fixed += s[e.seq[i]];
-//             sigmaCj_fixed += fixed;
-//         }
+        // branch
+        double fixed = 0;
+        double sigmaCj_fixed = 0;
+        for(int i = 0; i < e.seq.size(); i++)
+        {
+            fixed += s[e.seq[i]];
+            sigmaCj_fixed += fixed;
+        }
         
-//         // compute out-tree generating left sequence 
-//         Vi outTreeVec(e.seq);        
-//         for(int i = 1; i <= Sn; i++)
-//         {
-//             if(!e.visited.test(i))
-//             {
-//                 outTreeVec.push_back(i);                
-//             }
-//         }
-//         cout << "outtree seq: ";
-//         for(auto it: outTreeVec)
-//             cout << it << " "; cout << endl;
-//         Uheap hp = toUheap(outTreeVec, prec, child, s, t);
-// //                hp.debug = true;
-//         list<int> v = hp.find_seq();
-//         double ans = computeSeq(v);
-//         // cout << "ans: " << ans << endl;
-//         // cout << "min: " << min << endl;              
-//         if(ans < min)
-//         {
-//             if(debug) printf("ans: %.2f, min: %.2f\n", ans, min);
-//             min = ans;
-//             min_seq = v;
-//             for(auto it: min_seq)
-//             cout << it << ", " ; cout << endl;   
-//             printf("now min: %.1f\n", min);
-//         }
+        // compute out-tree generating left sequence 
+        Vi outTreeVec(e.seq);        
+        for(int i = 1; i <= Sn; i++)
+        {
+            if(!e.visited.test(i))
+            {
+                outTreeVec.push_back(i);                
+            }
+        }
+        cout << "outtree seq: ";
+        for(auto it: outTreeVec)
+            cout << it << " "; cout << endl;
+        Uheap hp = toUheap(outTreeVec, prec, child, s, t);
+//                hp.debug = true;
+        list<int> v = hp.find_seq();
+        double ans = computeSeq(v);
+        // cout << "ans: " << ans << endl;
+        // cout << "min: " << min << endl;              
+        if(ans < min)
+        {
+            if(debug) printf("ans: %.2f, min: %.2f\n", ans, min);
+            min = ans;
+            min_seq = v;
+            for(auto it: min_seq)
+            cout << it << ", " ; cout << endl;   
+            printf("now min: %.1f\n", min);
+        }
 
 
-//         for(int i = 1; i <= Sn; i++)
-//         {
-//             if(!e.visited.test(i))
-//             {
-//                 Vi v_in(e.seq);
-//                 v_in.push_back(i);
-//                 // 1. tidy up the seq till this time point
-//                 // 2. compute lb using SRPT
-//                 QQjr job_with_rj = qqjrGen(e, fixed);  
-//                 // for(auto it: job_with_rj){
-//                 //     cout << "(";
-//                 //     for(auto itt: it) 
-//                 //         cout << itt << ", ";
-//                 //     cout << ")";
-//                 //     }           
-//                 // cout << endl;   
-//                 int srpt = SRPT(job_with_rj);
-//                 int lb = sigmaCj_fixed + SRPT(job_with_rj) + s[i];
-//                 E topush = E((B(e.visited).set(i)), v_in, lb);
-//                 // cout << topush << " SigmaCjFixed: " << sigmaCj_fixed << " SRPT: " << srpt << endl;
-//                 q.push(E((B(e.visited).set(i)), v_in, lb));
-//                 // if(srpt < srptBest)
-//                 // {
-//                 //     srptBest = srpt;
+        for(int i = 1; i <= Sn; i++)
+        {
+            if(!e.visited.test(i))
+            {
+                Vi v_in(e.seq);
+                v_in.push_back(i);
+                // 1. tidy up the seq till this time point
+                // 2. compute lb using SRPT
+                QQjr job_with_rj = qqjrGen(e, fixed);  
+                // for(auto it: job_with_rj){
+                //     cout << "(";
+                //     for(auto itt: it) 
+                //         cout << itt << ", ";
+                //     cout << ")";
+                //     }           
+                // cout << endl;   
+                int srpt = SRPT(job_with_rj);
+                int lb = sigmaCj_fixed + SRPT(job_with_rj) + s[i];
+                E topush = E((B(e.visited).set(i)), v_in, lb);
+                // cout << topush << " SigmaCjFixed: " << sigmaCj_fixed << " SRPT: " << srpt << endl;
+                q.push(E((B(e.visited).set(i)), v_in, lb));
+                // if(srpt < srptBest)
+                // {
+                //     srptBest = srpt;
 
-//                 //     // // add computation
-//                 //     // for(int i = 1; i <= Sn; i++)
-//                 //     // {
-//                 //     //     if(!e.visited.test(i))
-//                 // }
-//                 // cout << " best srpt: " << srptBest << endl;
-// // next_sz++;   
-//             }
-//         }
-// //        q.bst_print();
-//     }
+                //     // // add computation
+                //     // for(int i = 1; i <= Sn; i++)
+                //     // {
+                //     //     if(!e.visited.test(i))
+                // }
+                // cout << " best srpt: " << srptBest << endl;
+// next_sz++;   
+            }
+        }
+//        q.bst_print();
+    }
 
-//     if(print)
-//     {
-//         printf("optimal seq:");
-//         for(auto it: min_seq) printf("%d, ", it); printf("\n");
-//         printf("min obj: %.1f\n", min);
-//     }
+    if(print)
+    {
+        printf("optimal seq:");
+        for(auto it: min_seq) printf("%d, ", it); printf("\n");
+        printf("min obj: %.1f\n", min);
+    }
 
-//     return make_pair(min_seq, min);
-// }
+    return make_pair(min_seq, min);
+}
 
 /* 
 
@@ -789,6 +787,7 @@ QQjr SetAndTestSchedule::qqjrGen_v1(E &e, bool debug = false)
 // cyclic-BFS + Branch-and-Bound + srpt
 pair<list<int>, double> SetAndTestSchedule::BFSCBBsolve(Vb prec, Vb child, Vd s, Vd t, bool print)
 {
+    double node_ct = 0;
     //init
     this->s = s;
     this->t = t;
@@ -823,6 +822,7 @@ pair<list<int>, double> SetAndTestSchedule::BFSCBBsolve(Vb prec, Vb child, Vd s,
             {
                 E e = contour[level].top();
                 contour[level].extract();  
+                node_ct++;
 
                 if(debug)
                 {                    
@@ -847,7 +847,7 @@ pair<list<int>, double> SetAndTestSchedule::BFSCBBsolve(Vb prec, Vb child, Vd s,
                         if(debug) printf("ans: %.2f, min: %.2f\n", ans, min);
                         min = ans;
                         min_seq = v;
-                        printf("now min: %.1f\n", min);
+                        printf("now min: %.1f, node_ct: %f\n", min, node_ct);
                         for(auto it: min_seq)
                         cout << it << ", " ; cout << endl << endl;
                     }
@@ -913,119 +913,121 @@ pair<list<int>, double> SetAndTestSchedule::BFSCBBsolve(Vb prec, Vb child, Vd s,
     return make_pair(min_seq, min);
 }
 
-// cyclic-BFS + Branch-and-Bound + gurobi
-pair<list<int>, double> SetAndTestSchedule::BFSCBBGuSolve(Vb prec, Vb child, Vd s, Vd t, bool print)
-{
-    //init
-    this->s = s;
-    this->t = t;
-    this->prec = prec;
-    this->child = child;
+// // cyclic-BFS + Branch-and-Bound + gurobi
+// pair<list<int>, double> SetAndTestSchedule::BFSCBBGuSolve(Vb prec, Vb child, Vd s, Vd t, bool print)
+// {
+//     //init
+//     this->s = s;
+//     this->t = t;
+//     this->prec = prec;
+//     this->child = child;
 
-    // BST generate permutations, here we don't need c
-    vector<PriorityQueue<E>> contour;
+//     // BST generate permutations, here we don't need c
+//     vector<PriorityQueue<E>> contour;
     
-    // each level has one contour(priority queue)
-    contour.assign(Tn+Sn+1, PriorityQueue<E>([](const E &e1, const E &e2){return e1.lb < e2.lb;}));
+//     // each level has one contour(priority queue)
+//     contour.assign(Tn+Sn+1, PriorityQueue<E>([](const E &e1, const E &e2){return e1.lb < e2.lb;}));
     
-    // PriorityQueue<E> q([](const E &e1, const E &e2){return e1.lb < e2.lb;});
-    contour[0].push(E(B(0), Vi(), 0));  // dummy job
+//     // PriorityQueue<E> q([](const E &e1, const E &e2){return e1.lb < e2.lb;});
+//     contour[0].push(E(B(0), Vi(), 0));  // dummy job
     
-    // incumbent solution init
-    long long sz = 1, lv = 0;
-    double min = INT_MAX;    
-    list<int> min_seq;
-    B levelVisited; levelVisited.set();     // levelvisited = 1111....1111, 用levelvisited來記錄每個contour是否為空
-    B mask(0); mask.flip(); mask >>= (mask.size() - (Sn+ 1));    // mask用來去掉不合理的level, a dummy level-0 is required
-    cout << mask << endl;
+//     // incumbent solution init
+//     long long sz = 1, lv = 0;
+//     double min = INT_MAX;    
+//     list<int> min_seq;
+//     B levelVisited; levelVisited.set();     // levelvisited = 1111....1111, 用levelvisited來記錄每個contour是否為空
+//     B mask(0); mask.flip(); mask >>= (mask.size() - (Sn+ 1));    // mask用來去掉不合理的level, a dummy level-0 is required
+//     cout << mask << endl;
 
-    // param for debug
-    unsigned long long cycle = 0;
+//     // param for debug
+//     unsigned long long cycle = 0;
 
-    while((levelVisited & mask).any())  // if there exists node unvisited...
-    {
-        for(int level = 0; level <= Sn; level++)    // level-0 well only be visit once, since after the dummy element is removed, the size will remain at 0
-        {
-            if(contour[level].size())
-            {
-                E e = contour[level].top();
-                contour[level].extract();  
+//     while((levelVisited & mask).any())  // if there exists node unvisited...
+//     {
+//         for(int level = 0; level <= Sn; level++)    // level-0 well only be visit once, since after the dummy element is removed, the size will remain at 0
+//         {
+//             if(contour[level].size())
+//             {
+//                 E e = contour[level].top();
+//                 contour[level].extract();  
 
-                if(debug)
-                {                    
-                    printf("\nset job seq: "); for(auto it: e.seq) printf("%d, ", it); printf("\n");
-                    printf("E: "); cout << e << endl;
-                }
+//                 if(debug)
+//                 {                    
+//                     printf("\nset job seq: "); for(auto it: e.seq) printf("%d, ", it); printf("\n");
+//                     printf("E: "); cout << e << endl;
+//                 }
 
-                // for each permutation, solve it by Uheap
-                if(e.seq.size() == Sn)
-                {
-                    if(debug) 
-                    {
-                        printf("\n\nnew complete seq starts.\n");
-                        printf("set job seq: "); for(auto it: e.seq) printf("%d, ", it); printf("\n");
-                    }
-                    Uheap hp = toUheap(e.seq, prec, child, s, t);
-                    // hp.debug = true;
-                    list<int> v = hp.find_seq();
-                    double ans = computeSeq(v);
-                    if(ans < min)
-                    {
-                        if(debug) printf("ans: %.2f, min: %.2f\n", ans, min);
-                        min = ans;
-                        min_seq = v;
-                        printf("now min: %.1f\n", min);
-                        for(auto it: min_seq)
-                        cout << it << ", " ; cout << endl << endl;
-                    }
-                    continue;
-                }
+//                 // for each permutation, solve it by Uheap
+//                 if(e.seq.size() == Sn)
+//                 {
+//                     if(debug) 
+//                     {
+//                         printf("\n\nnew complete seq starts.\n");
+//                         printf("set job seq: "); for(auto it: e.seq) printf("%d, ", it); printf("\n");
+//                     }
+//                     Uheap hp = toUheap(e.seq, prec, child, s, t);
+//                     // hp.debug = true;
+//                     list<int> v = hp.find_seq();
+//                     double ans = computeSeq(v);
+//                     if(ans < min)
+//                     {
+//                         if(debug) printf("ans: %.2f, min: %.2f\n", ans, min);
+//                         min = ans;
+//                         min_seq = v;
+//                         printf("now min: %.1f\n", min);
+//                         for(auto it: min_seq)
+//                         cout << it << ", " ; cout << endl << endl;
+//                     }
+//                     continue;
+//                 }
 
         
-                // branch
-                for(int i = 1; i <= Sn; i++)
-                {
-                    // 現在node還沒去過的地方
-                    // branching: move forward one more job
-                    // compute the lower bound of the sequence and then push the node into the next level contour(priority queue)
-                    if(!e.visited.test(i))  // if this set up job is not yet sequenced
-                    {
-                        Vi v_in(e.seq);
-                        v_in.push_back(i);
-                        E topush = E((B(e.visited).set(i)), v_in, 0);
+//                 // branch
+//                 for(int i = 1; i <= Sn; i++)
+//                 {
+//                     // 現在node還沒去過的地方
+//                     // branching: move forward one more job
+//                     // compute the lower bound of the sequence and then push the node into the next level contour(priority queue)
+//                     if(!e.visited.test(i))  // if this set up job is not yet sequenced
+//                     {
+//                         Vi v_in(e.seq);
+//                         v_in.push_back(i);
+//                         E topush = E((B(e.visited).set(i)), v_in, 0);
 
-                        // Gurobi compute lb
-                        topush.lb = Relax_Gurobi::relax_lb(child, s, t, v_in);            
+//                         // Gurobi compute lb
+//                         topush.lb = Relax_Gurobi::relax_lb(child, s, t, v_in);            
 
-                        // prune, lb如果比現在最好還糟就不要塞了                        
-                        if(topush.lb <= min)
-                        {
-                            if(debug) cout << "topush: " << topush << endl;
-                            contour[level+1].push(topush);      
-                        }                                     
-                    }
-                }
-            }
-            else
-            levelVisited.set(level, 0);
-        }        
-        cycle++;
+//                         // prune, lb如果比現在最好還糟就不要塞了                        
+//                         if(topush.lb <= min)
+//                         {
+//                             if(debug) cout << "topush: " << topush << endl;
+//                             contour[level+1].push(topush);      
+//                         }                                     
+//                     }
+//                 }
+//             }
+//             else
+//             levelVisited.set(level, 0);
+//         }        
+//         cycle++;
         
-    }
+//     }
 
-    if(print)
-    {
-        printf("optimal seq:");
-        for(auto it: min_seq) printf("%d, ", it); printf("\n");
-        printf("min obj: %.1f\n", min);
-    }
+//     if(print)
+//     {
+//         printf("optimal seq:");
+//         for(auto it: min_seq) printf("%d, ", it); printf("\n");
+//         printf("min obj: %.1f\n", min);
+//     }
 
-    return make_pair(min_seq, min);
-}
+//     return make_pair(min_seq, min);
+// }
 
 
 pair<list<int>, double> SetAndTestSchedule::localSearch(Vb prec, Vb child, Vd s, Vd t, bool print)
 {
+
+    double node_ct = 0;
     //init
     this->s = s;
     this->t = t;
@@ -1047,6 +1049,7 @@ pair<list<int>, double> SetAndTestSchedule::localSearch(Vb prec, Vb child, Vd s,
         {
             for(int j = i+1; j < Sn; j++)
             {   
+                node_ct++;
                 Vi tmp_seq(min_seq);   
                 SWAP(tmp_seq[i], tmp_seq[j]);
                 Uheap hp = toUheap(tmp_seq, prec, child, s, t);                
@@ -1057,7 +1060,7 @@ pair<list<int>, double> SetAndTestSchedule::localSearch(Vb prec, Vb child, Vd s,
                     if(debug) printf("ans: %.2f, min: %.2f\n", ans, min);
                     min = ans;
                     SWAP(min_seq[i], min_seq[j]);
-                    printf("now min: %.1f\n", min);
+                    printf("now min: %.1f, node_ct: %f\n", min, node_ct);
                     for(auto it: min_seq)
                     cout << it << ", " ; cout << endl << endl;
                 }
@@ -1072,10 +1075,25 @@ pair<list<int>, double> SetAndTestSchedule::localSearch(Vb prec, Vb child, Vd s,
     return make_pair(Uheap::vecToList(min_seq), min);
 }
 
+double SetAndTestSchedule::computeWithSetSeq(Vi seq, Vb prec, Vb child, Vd s, Vd t)
+{
+    //init
+    this->s = s;
+    this->t = t;
+    this->prec = prec;
+    this->child = child;
+
+    Uheap hp = toUheap(seq, prec, child, s, t);                
+    list<int> v = {16, 8, 20, 2, 28, 26, 5, 1, 11, 27, 53, 15, 7, 21, 25, 3, 12, 41, 30, 29, 56, 23, 34, 19, 35, 6, 47, 18, 38, 58, 17, 55, 24, 60, 57, 14, 40, 44, 50, 13, 59, 42, 4, 37, 9, 52, 43, 22, 51, 46, 54, 31, 36, 45, 10, 33, 32, 48, 49, 39};
+    for (auto it: v)
+        cout << it << ", " ; cout << endl << endl;
+    double ans = computeSeq(v);
+    cout << ans << endl;
+    return ans;
+}
 
 
-
-int main()
+int main(int argc, char* argv[])
 {
     // all 1-based, init and ref
     int tmp, Sn, Tn;;
@@ -1115,9 +1133,40 @@ int main()
     }
 
 
-    st.debug = true; 
-    pair<list<int>, double> pp = st.BFSCBBGuSolve(prec, child, s, t, true);
-    // pair<list<int>, double> pp = st.localSearch(prec, child, s, t, true);
-    for(auto it : pp.first) printf("%d, ", it); printf("\n");
+    // st.debug = true; 
+    if(argc >= 2)
+    {
+        string algorithm = string(argv[1]);
+        if(algorithm == "BFSCBB")
+        {
+            cerr << "using algorithm BFSCBBsolve" << endl;
+            pair<list<int>, double> pp = st.BFSCBBsolve(prec, child, s, t, true);    
+        }
+        else if(algorithm == "localSearch")
+        {
+            cerr << "using algorithm localSearch" << endl;
+            pair<list<int>, double> pp = st.localSearch(prec, child, s, t, true);
+        }
+        else if(algorithm == "DFS")
+        {
+            cerr << "using algorithm DFS" << endl;
+            pair<list<int>, double> pp = st.DFSsolve(prec, child, s, t, true);
+
+        }
+        else if(algorithm == "BFS")
+        {
+            cerr << "using algorithm BFS" << endl;
+            pair<list<int>, double> pp = st.solve(prec, child, s, t, true);
+        }
+        
+    }
+    // pair<list<int>, double> pp = st.BFSsolve(prec, child, s, t, true);    
+    cout << "finish!" << endl;
+    // pair<list<int>, double> pp = st.BFSCBBGuSolve(prec, child, s, t, true);
+    // for(auto it : pp.first) printf("%d, ", it); printf("\n");
+    
+    
+    // Vi seq = {16, 8, 20, 2, 28, 26, 5, 1, 11, 27, 15, 7, 21, 25, 3, 12, 30, 29, 23, 19, 6, 18, 17, 24, 14, 13, 4, 9, 22, 10};
+    // cout << st.computeWithSetSeq(seq, prec, child, s, t) << endl;
 
 }
