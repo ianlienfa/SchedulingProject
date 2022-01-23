@@ -1,0 +1,20 @@
+{
+    "files.associations": {
+        "**/*.html": "html",
+        "**/templates/**/*.html": "django-html",
+        "**/templates/**/*": "django-txt",
+        "**/requirements{/**,*}.{txt,in}": "pip-requirements",
+        "bitset": "cpp",
+        "iostream": "cpp",
+        "unordered_map": "c",
+        "list": "c",
+        "setandtestschedule.h": "c",
+        "new": "cpp",
+        "vector": "cpp",
+        "__tree": "cpp",
+        "map": "cpp",
+        "ostream": "cpp",
+        "string": "cpp",
+        "iosfwd": "cpp"
+    }
+}

@@ -1,0 +1,19 @@
+
+Gurobi 9.1.2 (mac64, gurobi_cl) logging started Mon Oct  4 19:59:01 2021
+
+Academic license - for non-commercial use only - expires 2022-09-29
+Using license file /Users/linenyan/gurobi.lic
+Set parameter LogFile to value gurobi.log
+
+Gurobi Optimizer version 9.1.2 build v9.1.2rc0 (mac64)
+Copyright (c) 2021, Gurobi Optimization, LLC
+
+
+Error 10012: Unknown file type for file 'sequence.py'
+
+
+Gurobi 9.1.2 (mac64, gurobi_cl) logging started Mon Oct  4 19:59:11 2021
+
+Academic license - for non-commercial use only - expires 2022-09-29
+Using license file /Users/linenyan/gurobi.lic
+Set parameter LogFile to value gurobi.log
