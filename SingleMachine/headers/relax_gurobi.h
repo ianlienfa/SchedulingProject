@@ -47,8 +47,8 @@ struct Relax_Gurobi
 };
 
 #define relax_gurobi_DEBUG  0
-#define relax_lb_SIMPLE_SEQ 0
-#define relax_lb_RELAX_PREC 1
+#define relax_lb_SIMPLE_SEQ 1
+#define relax_lb_RELAX_PREC 0
 
 #if relax_lb_SIMPLE_SEQ == 1
 int Relax_Gurobi::relax_lb(const Vb &_child, const Vd &_s, const Vd &_t, const Vi &setup_done)
@@ -186,7 +186,7 @@ int Relax_Gurobi::relax_lb(const Vb &_child, const Vd &_s, const Vd &_t, const V
                 #if relax_gurobi_DEBUG
                     cout << order_constr << endl;
                 #endif
-                model.addConstr(X[i][j] +  == 1, order_constr);
+                model.addConstr(X[i][j] == 1, order_constr);
             }
         }
     }
@@ -286,12 +286,12 @@ int Relax_Gurobi::relax_lb(const Vb &_child, const Vd &_s, const Vd &_t, const V
     // Create an environment
     GRBEnv env = GRBEnv(true);
     env.set("LogFile", "gurobi/mip1.log");
-    env.set(GRB_IntParam_OutputFlag, 0);
+    env.set(GRB_IntParam_OutputFlag, 1);
     env.start();
     
     // Create an empty model
     GRBModel model = GRBModel(env);
-    model.set("SolutionLimit", "1");
+    // model.set("SolutionLimit", "1");
     
 
     /*  ================ Variable Population =============

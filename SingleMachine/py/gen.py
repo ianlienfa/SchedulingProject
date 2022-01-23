@@ -3,12 +3,12 @@ import numpy as np
 import random
 
 #%%
-s_num = 80
-t_num = 80
+s_num = 160
+t_num = 160
 pt_lb = 1
-pt_ub = 80
+pt_ub = 160
 pre_lb = 1
-pre_ub = 80
+pre_ub = 160
 
 # %%
 def generate_suc_by_pre(pre,s_num,t_num):
